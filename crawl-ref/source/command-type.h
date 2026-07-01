@@ -107,6 +107,8 @@ enum command_type
     CMD_MACRO_MENU,
     CMD_SAVE_GAME,
     CMD_SAVE_GAME_NOW,
+    CMD_QUICK_SAVE,
+    CMD_QUICK_LOAD,
     CMD_SUSPEND_GAME,
     CMD_QUIT,
     CMD_WIZARD,

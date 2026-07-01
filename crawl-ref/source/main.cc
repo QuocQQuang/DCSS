@@ -878,6 +878,8 @@ static bool _cmd_is_repeatable(command_type cmd, bool is_again = false)
     case CMD_MACRO_MENU:
     case CMD_SAVE_GAME:
     case CMD_SAVE_GAME_NOW:
+    case CMD_QUICK_SAVE:
+    case CMD_QUICK_LOAD:
     case CMD_SUSPEND_GAME:
     case CMD_QUIT:
     case CMD_FIX_WAYPOINT:
@@ -2473,6 +2475,14 @@ void process_command(command_type cmd, command_type prev_cmd)
     case CMD_SAVE_GAME_NOW:
         mpr("Saving game... please wait.");
         save_game(true);
+        break;
+
+    case CMD_QUICK_SAVE:
+        quicksave_game();
+        break;
+
+    case CMD_QUICK_LOAD:
+        quickload_game();
         break;
 
     case CMD_QUIT:
