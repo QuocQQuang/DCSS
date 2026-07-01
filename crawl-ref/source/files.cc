@@ -12,6 +12,12 @@
 
 #include "AppHdr.h"
 
+#ifdef TARGET_OS_WINDOWS
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include "unicode.h"
+#endif
+
 #include "files.h"
 
 #include "json.h"
@@ -4085,3 +4091,139 @@ vector<string> get_title_files()
     return titles;
 }
 #endif
+
+static bool _copy_save_file(const string &src, const string &dst)
+{
+#ifdef TARGET_OS_WINDOWS
+    // Use Windows-specific CopyFileW for better reliability with locked/just-closed files
+    return !!CopyFileW(OUTW(src), OUTW(dst), FALSE);
+#else
+    FILE *fsrc = fopen_u(src.c_str(), "rb");
+    if (!fsrc)
+        return false;
+    FILE *fdst = fopen_u(dst.c_str(), "wb");
+    if (!fdst)
+    {
+        fclose(fsrc);
+        return false;
+    }
+    char buf[4096];
+    size_t size;
+    while ((size = fread(buf, 1, sizeof(buf), fsrc)) > 0)
+        fwrite(buf, 1, size, fdst);
+    fclose(fsrc);
+    fclose(fdst);
+    return true;
+#endif
+}
+
+void quicksave_game()
+{
+    mpr("QuickSaving...");
+    // Force a full state save including current level persistence
+    if (!you.entering_level)
+        save_level(level_id::current());
+    save_game(false);
+
+    string savedir = _get_savefile_directory();
+    string savname = get_save_filename(you.your_name);
+    string src_path = catpath(savedir, savname);
+
+    // Release lock for Windows copying
+    if (you.save)
+    {
+        delete you.save;
+        you.save = nullptr;
+    }
+
+    // Give OS a moment to finalize file closure (especially important on some Windows systems)
+#ifdef TARGET_OS_WINDOWS
+    Sleep(50); // 50ms
+#else
+    usleep(50000); // 50ms
+#endif
+
+    string quickdir = catpath(savedir, "quicksave");
+    check_mkdir("QuickSave directory", &quickdir, true);
+    string dst_path = catpath(quickdir, savname);
+
+    if (_copy_save_file(src_path, dst_path))
+    {
+        // Verification: ensure file size matches
+        struct stat st_src, st_dst;
+        if (stat(src_path.c_str(), &st_src) == 0 && stat(dst_path.c_str(), &st_dst) == 0)
+        {
+            if (st_src.st_size == st_dst.st_size && st_src.st_size > 0)
+            {
+                mprf("QuickSave successful! (%u bytes backed up)", (unsigned int)st_src.st_size);
+            }
+            else
+            {
+                mprf(MSGCH_ERROR, "QuickSave FAILED: Size mismatch (%u vs %u)", 
+                     (unsigned int)st_src.st_size, (unsigned int)st_dst.st_size);
+            }
+        }
+        else
+            mpr("QuickSave successful (but could not verify size).");
+    }
+    else
+        mpr("QuickSave FAILED! Could not copy save file.");
+
+    // Re-initialize save package
+    if (!you.save)
+        you.save = new package(src_path.c_str(), true);
+}
+
+void quickload_game()
+{
+    string savedir = _get_savefile_directory();
+    string quickdir = catpath(savedir, "quicksave");
+    string savname = get_save_filename(you.your_name);
+
+    if (!file_exists(catpath(quickdir, savname)))
+    {
+        mpr("No QuickSave found!");
+        return;
+    }
+
+    if (!yesno("Restore QuickSave? (Current progress will be lost)", false, 'n'))
+        return;
+
+    mpr("Restoring QuickSave...");
+
+    // IMPORTANT: Call abort() FIRST before delete, to prevent the package
+    // destructor from committing current game state to the save file.
+    // Without abort(), ~package() calls commit() which would overwrite the
+    // file with current (non-quicksave) state before we can copy over it.
+    if (you.save)
+    {
+        you.save->abort(); // prevent destructor from committing current state
+        delete you.save;
+        you.save = nullptr;
+    }
+
+    string src_path = catpath(quickdir, savname);
+    string dst_path = catpath(savedir, savname);
+
+    if (_copy_save_file(src_path, dst_path))
+    {
+        // Verification: ensure file size matches
+        struct stat st_src, st_dst;
+        if (stat(src_path.c_str(), &st_src) == 0 && stat(dst_path.c_str(), &st_dst) == 0)
+        {
+            if (st_src.st_size == st_dst.st_size && st_src.st_size > 0)
+            {
+                game_ended(game_exit::abort, "QuickLoad: Restored state. Restarting...");
+            }
+            else
+            {
+                mprf(MSGCH_ERROR, "QuickLoad FAILED: Size mismatch (%u vs %u)",
+                     (unsigned int)st_src.st_size, (unsigned int)st_dst.st_size);
+            }
+        }
+        else
+            game_ended(game_exit::abort, "QuickLoad: Restored state (unverified size).");
+    }
+    else
+        mpr("QuickLoad FAILED! Could not restore save file.");
+}

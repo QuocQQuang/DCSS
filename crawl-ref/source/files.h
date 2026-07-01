@@ -100,6 +100,9 @@ void save_game(bool leave_game, const char *bye = nullptr);
 // Save game without exiting (used when changing levels).
 void save_game_state();
 
+void quicksave_game();
+void quickload_game();
+
 void write_save_version(writer &file, save_version version);
 save_version get_save_version(reader &file);
 

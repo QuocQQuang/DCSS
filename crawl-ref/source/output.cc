@@ -1509,8 +1509,16 @@ static void _redraw_title()
                                       : god_name(you.religion);
         NOWRAP_EOL_CPRINTF("%s", god.c_str());
         formatted_string piety = formatted_string::parse_string(_god_asterisks(true));
+        if (you.religion != GOD_NO_GOD)
+        {
+            string god_stats = make_stringf(" (%d G:%d)", you.piety(), you.gift_timeout);
+            if ((int)(strwidth(species) + strwidth(god) + piety.width() + strwidth(god_stats) + 1) <= (int)WIDTH)
+                piety += god_stats;
+            else if ((int)(strwidth(species) + strwidth(god) + piety.width() + 6) <= (int)WIDTH) // Try shorter format
+                piety += make_stringf(" (%d)", you.piety());
+        }
         textcolour(_god_status_colour(YELLOW));
-        const unsigned int textwidth = (unsigned int)(strwidth(species) + strwidth(god) + strwidth(piety) + 1);
+        const unsigned int textwidth = (unsigned int)(strwidth(species) + strwidth(god) + piety.width() + 1);
         if (small_layout)
         {
             CGOTOXY(3, 2, GOTO_STAT);
@@ -1897,6 +1905,12 @@ static void _print_next_monster_desc(const vector<monster_info>& mons,
             CPRINTF(" ");
             textbackground(BLACK);
             textcolour(LIGHTGREY);
+            if (mi.max_hp > 0)
+            {
+                string hp_str = make_stringf("(%d/%d)", mi.current_hp, mi.max_hp);
+                CPRINTF("%s", hp_str.c_str());
+                printed += hp_str.length();
+            }
             CPRINTF(" ");
             printed += 3;
         }
@@ -2288,7 +2302,7 @@ static string _god_asterisks(bool leading_space)
             str = string(prank, '*') + string(NUM_PIETY_STARS - prank, '.');
     }
 
-    return make_stringf("%s%s", leading_space ? " " : "", str.c_str());
+    return make_stringf("%s%s (%d)", leading_space ? " " : "", str.c_str(), you.raw_piety);
 }
 
 /**

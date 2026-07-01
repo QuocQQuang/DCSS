@@ -1429,9 +1429,81 @@ void ouch(int dam, kill_method_type death_type, mid_t source, const char *aux,
 
     dec_hp(dam, true);
 
+    if (dam > 0 && you.hp > 0)
+    {
+        string prefix = "";
+        string suffix = "";
+        string color = "";
+        msg_channel_type channel = MSGCH_PLAIN;
+
+        const int perc = 100 * you.source_damage / max(you.hp_max, 1);
+        if (perc >= 50)
+        {
+            prefix = "[CRITICAL HIT] ";
+            suffix = " !!!!!";
+            color = "lightred";
+            channel = MSGCH_DANGER;
+            flash_view_delay(UA_HP, WHITE, 50);
+            run_animation(ANIMATION_SHAKE_VIEWPORT, UA_HP);
+        }
+        else if (perc >= 20)
+        {
+            prefix = "[DANGER] ";
+            suffix = " !!!";
+            color = "lightred";
+            channel = MSGCH_DANGER;
+            run_animation(ANIMATION_SHAKE_VIEWPORT, UA_HP);
+        }
+        else if (perc >= 10)
+        {
+            suffix = " !!";
+            color = "lightred";
+            channel = MSGCH_WARN;
+        }
+        else if (perc >= 5)
+        {
+            suffix = " !";
+            color = "red";
+        }
+        else if (perc >= 2)
+        {
+            color = "red";
+        }
+
+        string msg;
+        switch (death_type)
+        {
+            case KILLED_BY_MONSTER:
+            case KILLED_BY_BEAM:
+            case KILLED_BY_REFLECTION:
+            case KILLED_BY_BOUNCE:
+            case KILLED_BY_SELF_AIMED:
+            case KILLED_BY_CONSTRICTION:
+            case KILLED_BY_HEADBUTT:
+            case KILLED_BY_ROLLING:
+                // These already have combat messages, but we add an alert for heavy hits
+                if (perc >= 10)
+                {
+                    msg = make_stringf("%sHEAVY HIT: %d damage%s", prefix.c_str(), you.source_damage, suffix.c_str());
+                    if (perc >= 20)
+                        msg = uppercase(msg);
+                    mprf(channel, "<%s>%s</%s>", color.c_str(), msg.c_str(), color.c_str());
+                }
+                break;
+            default:
+                msg = make_stringf("%sYou take %d damage%s", prefix.c_str(), you.source_damage, suffix.c_str());
+                if (perc >= 10)
+                    msg[prefix.length()] = toupper(msg[prefix.length()]); // Capitalize 'Y'
+                if (perc >= 20)
+                    msg = uppercase(msg);
+                mprf(channel, "<%s>%s</%s>", color.c_str(), msg.c_str(), color.c_str());
+                break;
+        }
+    }
+
     // Even if we have low HP messages off, we'll still give a
     // big hit warning (in this case, a hit for half our HPs) -- bwr
-    if (dam > 0 && you.hp_max <= dam * 2)
+    if (dam > 0 && you.hp_max <= dam * 2 && you.hp > 0)
         mprf(MSGCH_DANGER, "Ouch! That really hurt!");
 
     if (you.hp > 0 && dam > 0)
