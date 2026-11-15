@@ -1703,6 +1703,14 @@ distclean: clean clean-contrib clean-rltiles
 
 $(GAME): $(GAME_OBJS) $(CONTRIB_LIBS) dat/dlua/tags.lua
 	+$(QUIET_LINK)$(CXX) $(LDFLAGS) $(GAME_OBJS) -o $(GAME) $(LIBS)
+ifdef WIN32
+	@if command -v cygpath >/dev/null 2>&1 && command -v powershell.exe >/dev/null 2>&1; then \
+		echo "    SHORTCUT Dungeon Crawl.lnk"; \
+		DCSS_EXE="$$(cygpath -w "$(CURDIR)/$(GAME)")" \
+		DCSS_DIR="$$(cygpath -w "$(CURDIR)")" \
+		powershell.exe -NoProfile -NonInteractive -Command '$$sh = New-Object -ComObject WScript.Shell; $$s = $$sh.CreateShortcut((Join-Path ([Environment]::GetFolderPath("Desktop")) "Dungeon Crawl.lnk")); $$s.TargetPath = $$env:DCSS_EXE; $$s.WorkingDirectory = $$env:DCSS_DIR; $$s.IconLocation = "$$env:DCSS_EXE,0"; $$s.Save()'; \
+	fi
+endif
 
 util/monster/vault_monster_data.h: dat/des util/gather_mons
 	util/gather_mons -v > $@
