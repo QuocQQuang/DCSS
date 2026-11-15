@@ -26,6 +26,7 @@
 #include <string>
 
 #include "ability.h"
+#include "bgm.h"
 #include "branch-data-json.h"
 #include "chardump.h"
 #include "clua.h"
@@ -129,7 +130,6 @@ static bool _force_allow_wizard();
 static bool _force_allow_explore();
 
 static species_type _str_to_species(const string &str);
-static sound_mapping _interrupt_sound_mapping(const string &s);
 static pair<text_pattern,string> _slot_mapping(const string &s);
 static pair<string, char> _consumable_mapping(const string &s);
 
@@ -616,8 +616,8 @@ const vector<GameOption*> game_options::build_options_list()
         new BoolGameOption(SIMPLE_NAME(arena_dump_msgs_all), false),
         new BoolGameOption(SIMPLE_NAME(arena_list_eq), false),
         new BoolGameOption(SIMPLE_NAME(default_manual_training), false),
-        new BoolGameOption(SIMPLE_NAME(one_SDL_sound_channel), false),
-        new BoolGameOption(SIMPLE_NAME(sounds_on), true),
+        new BoolGameOption(SIMPLE_NAME(bgm_on), true),
+        new IntGameOption(SIMPLE_NAME(bgm_volume), 70, 0, 100),
         new BoolGameOption(SIMPLE_NAME(quiver_menu_focus), false),
         new BoolGameOption(SIMPLE_NAME(launcher_autoquiver), true),
         new ColourGameOption(SIMPLE_NAME(tc_reachable), BLUE),
@@ -754,19 +754,12 @@ const vector<GameOption*> game_options::build_options_list()
                         monster_list_colours[m.category] = m.colour;
             }),
 
-        // these use the same options variable, so their reset functions will
-        // interact if they are ever different:
-        new ListGameOption<sound_mapping>(sound_mappings, {"sound"}, {}, true),
-        new ListGameOption<sound_mapping, OPTFUN(_interrupt_sound_mapping)>(
-            sound_mappings, {"hold_sound"}, {}, true),
-
         new ColourThresholdOption(hp_colour, {"hp_colour", "hp_color"},
                                   "70:yellow, 40:red", _first_greater),
         new ColourThresholdOption(mp_colour, {"mp_colour", "mp_color"},
                                   "50:yellow, 25:red", _first_greater),
         new ColourThresholdOption(stat_colour, {"stat_colour", "stat_color"},
                                   "3:red", _first_less),
-        new StringGameOption(SIMPLE_NAME(sound_file_path), "", true),
         new MultipleChoiceGameOption<travel_open_doors_type>(
             SIMPLE_NAME(travel_open_doors), travel_open_doors_type::open,
             {{"avoid", travel_open_doors_type::avoid},
@@ -2419,6 +2412,8 @@ void read_init_file(bool runscripts)
     }
 #endif
 
+    bgm_set_enabled(Options.bgm_on);
+    bgm_set_volume(Options.bgm_volume);
 }
 
 newgame_def read_startup_prefs()
@@ -3474,39 +3469,6 @@ colour_mapping::colour_mapping(const string &s)
     // valid, so now we can actually set the remaining member variables
     tag = tagname;
     colour = col;
-}
-
-static sound_mapping _interrupt_sound_mapping(const string &s)
-{
-    sound_mapping m(s);
-    m.interrupt_game = true;
-    return m;
-}
-
-sound_mapping::sound_mapping(const string &s)
-    : sound_mapping()
-{
-    string::size_type cpos = s.find(":", 0); // TODO: allow escaping?
-    if (cpos == string::npos)
-    {
-        mprf(MSGCH_ERROR, "Options error: invalid sound mapping '%s'", s.c_str());
-        return;
-    }
-#if !(defined(USE_SOUND) && (defined(WINMM_PLAY_SOUNDS) || defined(SOUND_PLAY_COMMAND) || defined(USE_SDL)))
-    static bool _sound_warning_issued = false;
-    if (!_sound_warning_issued)
-    {
-        // an rc with sound mappings will have a lot, so only say this once.
-        // This might be a bit non-ideal, as it only shows up in the main menu
-        // message log...
-        _sound_warning_issued = true;
-        mprf(MSGCH_PLAIN, "Options warning: `sound` will have no effect on this build.");
-    }
-#endif
-
-    pattern = s.substr(0, cpos);
-    // path resolution is handled when it's time to play the sound, not now
-    soundfile = s.substr(cpos + 1);
 }
 
 static pair<text_pattern,string> _slot_mapping(const string &s)

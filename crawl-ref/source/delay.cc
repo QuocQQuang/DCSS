@@ -59,7 +59,6 @@
 #include "random.h"
 #include "religion.h"
 #include "shout.h"
-#include "sound.h"
 #include "spl-damage.h"
 #include "spl-selfench.h"
 #include "spl-summoning.h"
@@ -757,9 +756,6 @@ void EquipOffDelay::finish()
 
 void MemoriseDelay::finish()
 {
-#ifdef USE_SOUND
-    parse_sound(MEMORISE_SPELL_SOUND);
-#endif
     mpr("You finish memorising.");
     add_spell_to_memory(spell);
     vehumet_accept_gift(spell);

@@ -31,7 +31,6 @@
 #include "perlin.h"
 #include "prompt.h"
 #include "religion.h"
-#include "sound.h"
 #include "state.h"
 #include "stringutil.h"
 #include "throw.h"
@@ -610,22 +609,6 @@ static int crawl_do_commands(lua_State *ls)
 
     return 0;
 }
-
-#ifdef USE_SOUND
-/*** Play a sound.
- * Only available when crawl is compiled with sound.
- * @tparam string sf filename of sound to play
- * @function playsound
- */
-static int crawl_playsound(lua_State *ls)
-{
-    const char *sf = luaL_checkstring(ls, 1);
-    if (!sf)
-        return 0;
-    play_sound(sf);
-    return 0;
-}
-#endif
 
 /*** Run a macro.
  * @tparam string macroname name of macro to run
@@ -1599,9 +1582,6 @@ static const struct luaL_Reg crawl_clib[] =
     { "set_sendkeys_errors", crawl_set_sendkeys_errors },
     { "do_commands",        crawl_do_commands },
     { "do_targeted_command", crawl_do_targeted_command },
-#ifdef USE_SOUND
-    { "playsound",          crawl_playsound },
-#endif
     { "runmacro",           crawl_runmacro },
     { "bindkey",            crawl_bindkey },
     { "setopt",             crawl_setopt },

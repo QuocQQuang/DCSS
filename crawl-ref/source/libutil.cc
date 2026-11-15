@@ -26,10 +26,6 @@
     #undef ARRAYSZ
     #include <windows.h>
     #undef max
-
-    #ifdef WINMM_PLAY_SOUNDS
-        #include <mmsystem.h>
-    #endif
 #endif
 
 #ifdef UNIX

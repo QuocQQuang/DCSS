@@ -5,13 +5,12 @@
 
 #include "windowmanager-sdl.h"
 
-#include "sound.h"      // Needs to be here because WINMM_PLAY_SOUNDS is used below
+#include "bgm.h"
 
 #ifdef __ANDROID__
 # include <SDL.h>
 # include <SDL_image.h>
 # include <android/log.h>
-# include <SDL_mixer.h>
 #else
 # ifdef TARGET_COMPILER_VC
 #  include <SDL.h>
@@ -19,9 +18,6 @@
 #  include <SDL2/SDL.h>
 # endif
 # include <SDL_image.h>
-# if defined(USE_SOUND) && !defined(WINMM_PLAY_SOUNDS)
-#  include <SDL2/SDL_mixer.h>
-# endif
 #endif
 
 #include "cio.h"
@@ -45,21 +41,13 @@ void WindowManager::create()
         return;
 
     wm = new SDLWrapper();
-#if defined(USE_SOUND) && !defined(WINMM_PLAY_SOUNDS)
-    Mix_Init(MIX_INIT_OGG | MIX_INIT_MP3);
-    Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
-#endif
 }
 
 void WindowManager::shutdown()
 {
+    bgm_shutdown();
     delete wm;
     wm = nullptr;
-#if defined(USE_SOUND) && !defined(WINMM_PLAY_SOUNDS)
-    Mix_CloseAudio();
-    while (Mix_Init(0))
-        Mix_Quit();
-#endif
 }
 
 static unsigned char _kmod_to_mod(int modifier)
@@ -439,6 +427,7 @@ SDLWrapper::SDLWrapper():
 
 SDLWrapper::~SDLWrapper()
 {
+    bgm_shutdown();
     for (const auto& cursor : m_cursors)
         if (cursor)
             SDL_FreeCursor(cursor);
@@ -457,6 +446,7 @@ int SDLWrapper::init(coord_def *m_windowsz)
         printf("Failed to initialise SDL: %s\n", SDL_GetError());
         return false;
     }
+    bgm_init();
 
     int cur_display;
 #ifdef __ANDROID__

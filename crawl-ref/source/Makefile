@@ -18,8 +18,7 @@
 # Typical parameters:
 #    TILES         -- set to anything to enable tiles build
 #
-#    SOUND         -- set to anything to enable sound; note that you will need to
-#                     uncomment some lines in sound.h if not building tiles
+#    SOUND         -- set to anything to enable procedural adaptive BGM synthesis
 #
 #    CROSSHOST     -- target system, eg, i386-pc-msdosdjgpp or i586-mingw32msvc
 #
@@ -252,7 +251,7 @@ ifdef msys
 	BUILD_ZLIB = YesPlease
 	BUILD_SQLITE = YesPlease
 	SOUND = YesPlease
-	DEFINES_L += -DWINMM_PLAY_SOUNDS -D__USE_MINGW_ANSI_STDIO
+	DEFINES_L += -D__USE_MINGW_ANSI_STDIO
 	EXTRA_LIBS += -lwinmm
 	ifdef TILES
 		EXTRA_LIBS += -lmingw32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion contrib/install/$(ARCH)/lib/libSDL2main.a -mwindows
@@ -290,11 +289,6 @@ endif
 			BUILD_FREETYPE = YesPlease
 			BUILD_SDL2 = YesPlease
 			BUILD_SDL2IMAGE = YesPlease
-			ifdef SOUND
-				ifndef WIN32
-					BUILD_SDL2MIXER = YesPlease
-				endif
-			endif
 			BUILD_LIBPNG = YesPlease
 		endif
 	endif
@@ -318,11 +312,6 @@ ifdef BUILD_ALL
 	endif
 
 	BUILD_PCRE = YesPlease
-	ifdef SOUND
-		ifndef WIN32
-			BUILD_SDL2MIXER = YesPlease
-		endif
-	endif
 	BUILD_SQLITE = YesPlease
 	BUILD_LUA = YesPlease
 	BUILD_ZLIB = YesPlease
@@ -336,7 +325,6 @@ LIBPCRE := contrib/install/$(ARCH)/lib/libpcre.a
 LIBSDL2 := contrib/install/$(ARCH)/lib/libSDL2.a
 LIBPNG := contrib/install/$(ARCH)/lib/libpng.a
 LIBSDL2IMAGE := contrib/install/$(ARCH)/lib/libSDL2_image.a
-LIBSDL2MIXER := contrib/install/$(ARCH)/lib/libSDL2_mixer.a
 LIBFREETYPE := contrib/install/$(ARCH)/lib/libfreetype.a
 LIBSQLITE := contrib/install/$(ARCH)/lib/libsqlite3.a
 ifdef USE_LUAJIT
@@ -767,11 +755,6 @@ SDL2_CFLAGS  := $(shell $(PKGCONFIG) sdl2 --cflags-only-other)
 SDL2_LDFLAGS := $(shell $(PKGCONFIG) sdl2 --libs-only-L) $(shell $(PKGCONFIG) sdl2 --libs-only-l)
 endif
 
-ifdef SOUND
-ifndef WIN32
-LIBS += -lSDL2_mixer
-endif
-endif
 LIBS += -lSDL2_image $(SDL2_LDFLAGS) $(FREETYPE_LDFLAGS)
 
 endif # pkg-config
@@ -1209,10 +1192,6 @@ endif
 ifdef BUILD_SDL2IMAGE
 CONTRIBS += sdl2-image
 CONTRIB_LIBS := $(LIBSDL2IMAGE) $(CONTRIB_LIBS)
-endif
-ifdef BUILD_SDL2MIXER
-CONTRIBS += sdl2-mixer
-CONTRIB_LIBS := $(LIBSDL2MIXER) $(CONTRIB_LIBS)
 endif
 ifdef BUILD_ZLIB
 CONTRIBS += zlib

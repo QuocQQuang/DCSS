@@ -13,6 +13,7 @@ attack.o \
 attitude-change.o \
 beam.o \
 behold.o \
+bgm.o \
 bitary.o \
 branch.o \
 branch-data-json.o \
@@ -213,7 +214,6 @@ show.o \
 showsymb.o \
 skill-menu.o \
 skills.o \
-sound.o \
 species.o \
 spl-book.o \
 spl-cast.o \
@@ -350,6 +350,7 @@ attribute-type.h.o \
 beam.h.o \
 beam-type.h.o \
 beh-type.h.o \
+bgm.h.o \
 bitary.h.o \
 book-type.h.o \
 branch.h.o \
@@ -522,7 +523,6 @@ skill-menu-state.h.o \
 skills.h.o \
 skill-type.h.o \
 slot-select-mode.h.o \
-sound.h.o \
 species-type.h.o \
 spell-type.h.o \
 spl-book.h.o \

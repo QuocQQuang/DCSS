@@ -37,6 +37,7 @@
 #include "arena.h"
 #include "artefact.h"
 #include "beam.h"
+#include "bgm.h"
 #include "branch.h"
 #include "chardump.h"
 #include "cio.h"
@@ -483,6 +484,7 @@ NORETURN static void _launch_game()
     // can happen if Crawl sees SIGHUP while it is waiting for the player
     // to dismiss a level-up prompt.
     level_change();
+    bgm_update();
 
     // Initialise save game so we can recover from crashes on D:1.
     save_game_state();
@@ -2213,8 +2215,9 @@ void process_command(command_type cmd, command_type prev_cmd)
 
 #ifdef USE_SOUND
     case CMD_TOGGLE_SOUND:
-        Options.sounds_on = !Options.sounds_on;
-        mprf("Sound effects are now %s.", Options.sounds_on ? "on" : "off");
+        Options.bgm_on = !Options.bgm_on;
+        bgm_set_enabled(Options.bgm_on);
+        mprf("Dungeon BGM is now %s.", Options.bgm_on ? "on" : "off");
         break;
 #endif
 
@@ -2750,6 +2753,8 @@ void world_reacts()
     // the loudest noise tracking for the next world_reacts cycle.
     you.los_noise_last_turn = you.los_noise_level;
     you.los_noise_level = 0;
+
+    bgm_update();
 }
 
 static command_type _get_next_cmd()

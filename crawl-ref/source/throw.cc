@@ -42,7 +42,6 @@
 #include "shout.h"
 #include "showsymb.h"
 #include "skills.h"
-#include "sound.h"
 #include "spl-summoning.h"
 #include "state.h"
 #include "stringutil.h"
@@ -279,10 +278,6 @@ static shared_ptr<quiver::action> _fire_prompt_for_item()
     if (inv_count() < 1)
         return nullptr;
 
-    // should this sound happen for `f` too? Not sure what the intent is
-#ifdef USE_SOUND
-    parse_sound(FIRE_PROMPT_SOUND);
-#endif
 
     const bool fireables = any_items_of_type(OSEL_QUIVER_ACTION);
     if (!fireables)

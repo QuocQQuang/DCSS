@@ -31,7 +31,6 @@
 #include "potion.h"
 #include "prompt.h"
 #include "religion.h"
-#include "sound.h"
 #include "spl-damage.h"
 #include "spl-monench.h"
 #include "spl-transloc.h"
@@ -2049,9 +2048,6 @@ namespace quiver
             const int item_slot = get()->get_item();
             if (item_slot >= 0 && you.inv[item_slot].defined())
                 you.m_quiver_history.set_quiver(you.inv[item_slot]);
-#ifdef USE_SOUND
-            parse_sound(CHANGE_QUIVER_SOUND);
-#endif
         }
         set_needs_redraw();
         return diff;

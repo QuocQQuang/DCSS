@@ -32,7 +32,7 @@
 #include "prompt.h"
 #include "scroller.h"
 #include "showsymb.h"
-#include "sound.h"
+#include "bgm.h"
 #include "state.h"
 #include "stringutil.h"
 #include "syscalls.h"
@@ -76,8 +76,8 @@ static const char *features[] =
     "Glob patterns",
 #endif
 
-#if defined(USE_SOUND) && defined(SOUND_BACKEND)
-    SOUND_BACKEND,
+#if defined(USE_SOUND) && defined(BGM_BACKEND)
+    BGM_BACKEND,
 #endif
 
 #ifdef DGL_MILESTONES
@@ -1077,7 +1077,7 @@ static void _add_formatted_keyhelp(column_composer &cols)
     _add_command(cols, 1, CMD_TOGGLE_AUTOPICKUP, "toggle auto-pickup");
     _add_command(cols, 1, CMD_IGNORE_INVISIBLE, "suppress invisible monster warnings");
 #ifdef USE_SOUND
-    _add_command(cols, 1, CMD_TOGGLE_SOUND, "mute/unmute sound effects");
+    _add_command(cols, 1, CMD_TOGGLE_SOUND, "mute/unmute background music");
 #endif
 #ifdef USE_TILE_LOCAL
     _add_insert_commands(cols, 1, "<w>%</w>/<w>%</w> : zoom out/in",

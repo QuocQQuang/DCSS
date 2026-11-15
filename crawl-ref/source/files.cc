@@ -44,6 +44,7 @@
 #include "abyss.h"
 #include "act-iter.h"
 #include "areas.h"
+#include "bgm.h"
 #include "branch.h"
 #include "chardump.h"
 #include "cloud.h"
@@ -2338,7 +2339,10 @@ bool load_level(dungeon_feature_type stair_taken, load_mode_type load_mode,
     _redraw_all();
 
     if (load_mode != LOAD_VISITOR)
+    {
         dungeon_events.fire_event(DET_ENTERING_LEVEL);
+        bgm_update();
+    }
 
     // Things to update for player entering level
     if (load_mode == LOAD_ENTER_LEVEL)

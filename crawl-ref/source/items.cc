@@ -68,7 +68,6 @@
 #include "showsymb.h"
 #include "skills.h"
 #include "slot-select-mode.h"
-#include "sound.h"
 #include "spl-book.h"
 #include "spl-util.h"
 #include "stash.h"
@@ -2065,9 +2064,6 @@ static bool _merge_stackable_item_into_inv(const item_def &it, int quant_got,
 
         if (!quiet)
         {
-#ifdef USE_SOUND
-            parse_sound(PICKUP_SOUND);
-#endif
             string prefix = you.inv[inv_slot].slot != old_slot
                             ? make_stringf("%c -> ", old_slot) : "";
             mprf_nocap("%s%s (gained %d)",
@@ -2110,9 +2106,6 @@ static bool _merge_evokers(const item_def &it, int &inv_slot, bool quiet)
 
         if (!quiet)
         {
-#ifdef USE_SOUND
-            parse_sound(PICKUP_SOUND);
-#endif
             mprf_nocap("%s (improved by +1).",
                         menu_colour_item_name(you.inv[inv_slot],
                                                     DESC_INVENTORY).c_str());
@@ -2149,9 +2142,6 @@ static bool _merge_wand_charges(const item_def &it, int &inv_slot, bool quiet)
 
         if (!quiet)
         {
-#ifdef USE_SOUND
-            parse_sound(PICKUP_SOUND);
-#endif
             mprf_nocap("%s (gained %d charge%s)",
                         menu_colour_item_name(you.inv[inv_slot],
                                                     DESC_INVENTORY).c_str(),
@@ -2420,9 +2410,6 @@ static int _place_item_in_free_slot(item_def &it, int quant_got,
         return newitem->link;
     else if (!quiet)
     {
-#ifdef USE_SOUND
-        parse_sound(PICKUP_SOUND);
-#endif
         mprf_nocap("%s", menu_colour_item_name(item, DESC_INVENTORY).c_str());
     }
 

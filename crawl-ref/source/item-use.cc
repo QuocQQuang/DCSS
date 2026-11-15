@@ -55,7 +55,6 @@
 #include "religion.h"
 #include "shout.h"
 #include "skills.h"
-#include "sound.h"
 #include "spl-book.h"
 #include "spl-clouds.h"
 #include "spl-goditem.h"

@@ -37,7 +37,6 @@
 #include "religion.h"
 #include "shopping.h"
 #include "skills.h"
-#include "sound.h"
 #include "spl-clouds.h"
 #include "spl-summoning.h"
 #include "spl-transloc.h"
@@ -1583,15 +1582,6 @@ void equip_item(equipment_slot slot, int item_slot, bool msg, bool skip_effects)
 
     const unsigned int old_talents = your_talents().size();
 
-#ifdef USE_SOUND
-    if (is_weapon(item))
-        parse_sound(WIELD_WEAPON_SOUND);
-    else if (item.base_type == OBJ_ARMOUR)
-        parse_sound(EQUIP_ARMOUR_SOUND);
-    else if (item.base_type == OBJ_JEWELLERY)
-        parse_sound(WEAR_JEWELLERY_SOUND);
-#endif
-
     you.equipment.add(item, slot);
     you.equipment.update();
 
@@ -1627,12 +1617,7 @@ bool unequip_item(item_def& item, bool msg, bool skip_effects,
     const unsigned int old_talents = your_talents().size();
 #endif
 
-#ifdef USE_SOUND
-    parse_sound(item.base_type == OBJ_JEWELLERY
-                                        ? REMOVE_JEWELLERY_SOUND :
-                    is_weapon(item) ? WIELD_NOTHING_SOUND
-                                    : DEQUIP_ARMOUR_SOUND);
-#endif
+
 
     if (is_weapon(item) && you.has_mutation(MUT_SLOW_WIELD) && !skip_effects)
         say_farewell_to_weapon(item);

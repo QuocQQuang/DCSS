@@ -95,27 +95,6 @@ struct message_filter
     }
 };
 
-struct sound_mapping
-{
-    sound_mapping()
-        : interrupt_game(false)
-    {
-    }
-
-    sound_mapping(const string &s);
-
-    text_pattern pattern;
-    string       soundfile;
-    bool         interrupt_game;
-
-    bool operator== (const sound_mapping &o) const
-    {
-        return pattern == o.pattern
-                && soundfile == o.soundfile
-                && interrupt_game == o.interrupt_game;
-    }
-};
-
 struct colour_mapping
 {
     colour_mapping()
@@ -618,8 +597,8 @@ public:
 
     bool        flush_input[NUM_FLUSH_REASONS]; // when to flush input buff
 
-    bool        sounds_on;              // Allow sound effects to play
-    bool        one_SDL_sound_channel;  // Limit to one SDL sound at once
+    bool        bgm_on;                 // Allow procedural dungeon BGM to play
+    int         bgm_volume;             // Procedural dungeon BGM volume (0-100)
 
     char_set_type  char_set;
     FixedVector<char32_t, NUM_DCHAR_TYPES> char_table;
@@ -750,8 +729,6 @@ public:
 
     bool        travel_one_unsafe_move; // Allow one unsafe move of auto travel
 
-    vector<sound_mapping> sound_mappings;
-    string sound_file_path;
     vector<colour_mapping> menu_colour_mappings;
     vector<message_colour_mapping> message_colour_mappings;
     vector<mlc_mapping> monster_list_colours_option;
