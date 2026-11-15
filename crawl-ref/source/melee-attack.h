@@ -105,7 +105,8 @@ private:
     int calc_mon_to_hit_base() override;
     int apply_mon_damage_modifiers(int damage) override;
     int calc_damage() override;
-    bool apply_damage_brand(const char *what = nullptr) override;
+    bool apply_damage_brand(const char *what = nullptr,
+                            bool dry_run = false) override;
 
     /* Attack effects */
     bool check_unrand_effects() override;
@@ -187,7 +188,7 @@ private:
     void attacker_sustain_passive_damage();
     int  staff_damage(stave_type staff) const;
     string staff_message(stave_type staff, int damage) const;
-    bool apply_staff_damage();
+    bool apply_staff_damage(bool dry_run = false);
     void player_stab_check() override;
     bool player_good_stab() override;
     void player_announce_aux_hit(unarmed_attack_type atk);

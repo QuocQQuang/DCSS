@@ -918,6 +918,9 @@ bool melee_attack::handle_phase_hit()
 
     if (damage_done > 0 || flavour_triggers_damageless(attk_flavour))
     {
+        if (!defender->is_player() || !you.pending_revival)
+            apply_damage_brand(nullptr, true);
+
         if (!handle_phase_damaged())
             return false;
 
@@ -2737,6 +2740,8 @@ bool melee_attack::player_aux_apply(unarmed_attack_type atk)
 
     aux_damage = inflict_damage(aux_damage, BEAM_MISSILE);
     damage_done = aux_damage;
+    special_damage_forecasted = false;
+    forecasted_special_damage = 0;
 
     if (defender->alive())
     {
@@ -3540,7 +3545,7 @@ string melee_attack::staff_message(stave_type staff, int dam) const
     }
 }
 
-bool melee_attack::apply_staff_damage()
+bool melee_attack::apply_staff_damage(bool dry_run)
 {
     if (!weapon)
         return false;
@@ -3555,11 +3560,30 @@ bool melee_attack::apply_staff_damage()
     }
 
     const stave_type staff = static_cast<stave_type>(weapon->sub_type);
-    int dam = staff_damage(staff);
     const beam_type flavour = staff_damage_type(staff);
-    dam = resist_adjust_damage(defender, flavour, dam);
-    if (staff == STAFF_EARTH && defender->airborne())
-        dam /= 3;
+    int dam = 0;
+
+    if (!dry_run && special_damage_forecasted)
+    {
+        dam = forecasted_special_damage;
+        special_damage_forecasted = false;
+        forecasted_special_damage = 0;
+    }
+    else
+    {
+        dam = staff_damage(staff);
+        dam = resist_adjust_damage(defender, flavour, dam);
+        if (staff == STAFF_EARTH && defender->airborne())
+            dam /= 3;
+    }
+
+    if (dry_run)
+    {
+        forecasted_special_damage = dam;
+        special_damage_forecasted = true;
+        return true;
+    }
+
     if (dam > 0)
     {
         if (staff == STAFF_FIRE && defender->is_player())
@@ -5316,17 +5340,21 @@ int melee_attack::calc_damage()
     return attack::calc_damage();
 }
 
-bool melee_attack::apply_damage_brand(const char *what)
+bool melee_attack::apply_damage_brand(const char *what, bool dry_run)
 {
     // Staff damage overrides any brands
-    bool ret = apply_staff_damage() || attack::apply_damage_brand(what);
+    bool ret = apply_staff_damage(dry_run)
+               || attack::apply_damage_brand(what, dry_run);
+
+    if (dry_run)
+        return ret;
 
     // Apply the bonus brand from Xom's cleaving blessing
     const brand_type extra_brand = xom_extra_brand();
     if (extra_brand != SPWPN_NORMAL)
     {
         unwind_var<brand_type> unwind(damage_brand, extra_brand);
-        ret |= attack::apply_damage_brand(what);
+        ret |= attack::apply_damage_brand(what, false);
     }
 
     return ret;

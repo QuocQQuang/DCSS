@@ -51,7 +51,14 @@ public:
     // A tally of all direct weapon + brand damage inflicted by this attack
     // (including damage against cleave targets, both hits of quick blades,
     // and aux attacks).
-    int       total_damage_done;
+    int        total_damage_done;
+    int        forecasted_special_damage;
+    bool       special_damage_forecasted;
+    beam_type  forecasted_special_flavour;
+    string     forecasted_special_message;
+    bool       forecasted_obvious_effect;
+    brand_type forecasted_chaos_brand;
+    bool       has_forecasted_chaos_brand;
 
     beam_type special_damage_flavour;
 
@@ -157,7 +164,8 @@ protected:
     {
         return false;
     }
-    virtual bool apply_damage_brand(const char *what = nullptr);
+    virtual bool apply_damage_brand(const char *what = nullptr,
+                                    bool dry_run = false);
     void calc_elemental_brand_damage(beam_type flavour,
                                      const char *verb,
                                      const char *what = nullptr);
@@ -182,6 +190,7 @@ protected:
 
     /* Output */
     string debug_damage_number();
+    virtual int forecasted_extra_damage() const { return 0; }
     string evasion_margin_adverb();
 
     virtual void set_attack_verb(int damage) = 0;

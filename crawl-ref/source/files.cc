@@ -4244,11 +4244,17 @@ void quickload_game()
             {
                 mprf(MSGCH_ERROR, "QuickLoad FAILED: Size mismatch (%u vs %u)",
                      (unsigned int)st_src.st_size, (unsigned int)st_dst.st_size);
+                if (!you.save)
+                    you.save = new package(dst_path.c_str(), true);
             }
         }
         else
             game_ended(game_exit::abort, "QuickLoad: Restored state (unverified size).");
     }
     else
+    {
         mpr("QuickLoad FAILED! Could not restore save file.");
+        if (!you.save)
+            you.save = new package(dst_path.c_str(), true);
+    }
 }

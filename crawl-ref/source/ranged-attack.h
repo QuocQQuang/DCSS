@@ -48,7 +48,7 @@ private:
     special_missile_type random_chaos_missile_brand();
     bool dart_check(special_missile_type type);
     int dart_duration_roll(special_missile_type type);
-    bool apply_missile_brand();
+    bool apply_missile_brand(bool dry_run = false);
     bool throwing() const;
 
     /* Weapon Effects */
@@ -60,6 +60,7 @@ private:
     bool player_good_stab() override;
 
     /* Output */
+    int forecasted_extra_damage() const override;
     void set_attack_verb(int damage) override;
     void announce_hit() override;
 
@@ -69,6 +70,13 @@ private:
     string proj_name;
     bool teleport;
     bool _did_net;
+    int forecasted_missile_damage;
+    bool missile_damage_forecasted;
+    beam_type forecasted_missile_flavour;
+    string forecasted_missile_message;
+    bool forecasted_missile_obvious;
+    special_missile_type forecasted_chaos_missile_brand;
+    bool has_forecasted_chaos_missile_brand;
 };
 
 int player_archery_damage_bonus(int dam, bool random);

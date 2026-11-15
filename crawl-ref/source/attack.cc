@@ -62,6 +62,10 @@ attack::attack(actor *attk, actor *defn, actor *blame)
       needs_message(false), attacker_visible(false), defender_visible(false),
       perceived_attack(false), obvious_effect(false), to_hit(0),
       damage_done(0), special_damage(0), aux_damage(0), total_damage_done(0),
+      forecasted_special_damage(0), special_damage_forecasted(false),
+      forecasted_special_flavour(BEAM_NONE), forecasted_special_message(),
+      forecasted_obvious_effect(false), forecasted_chaos_brand(SPWPN_NORMAL),
+      has_forecasted_chaos_brand(false),
       special_damage_flavour(BEAM_NONE),
       stab_attempt(false), stab_bonus(0), ev_margin(0), weapon(nullptr),
       damage_brand(SPWPN_NORMAL), wpn_skill(SK_UNARMED_COMBAT),
@@ -677,16 +681,20 @@ int attack::inflict_damage(int dam, beam_type flavour)
     return final;
 }
 
-/* If debug, return formatted damage done
+/* Return formatted damage done for combat log display
  *
  */
 string attack::debug_damage_number()
 {
-#ifdef DEBUG_DIAGNOSTICS
-    return make_stringf(" for %d", damage_done);
-#else
-    return "";
-#endif
+    // Darts store effect duration in damage_done rather than damage.
+    if (using_weapon() && weapon->is_type(OBJ_MISSILES, MI_DART))
+        return "";
+    const int spec = special_damage_forecasted ? forecasted_special_damage
+                                               : special_damage;
+    const int total = damage_done + spec + forecasted_extra_damage();
+    if (total <= 0)
+        return "";
+    return make_stringf(" (%d)", total);
 }
 
 /* Returns standard attack punctuation
@@ -1092,14 +1100,45 @@ bool attack::apply_poison_damage_brand()
     return false;
 }
 
-bool attack::apply_damage_brand(const char *what)
+bool attack::apply_damage_brand(const char *what, bool dry_run)
 {
     int brand = 0;
     bool ret = false;
+    const bool using_forecast = !dry_run && special_damage_forecasted;
 
     special_damage = 0;
     obvious_effect = false;
-    brand = damage_brand == SPWPN_CHAOS ? random_chaos_brand() : damage_brand;
+    if (damage_brand == SPWPN_CHAOS)
+    {
+        if (using_forecast && has_forecasted_chaos_brand)
+            brand = forecasted_chaos_brand;
+        else
+        {
+            brand = random_chaos_brand();
+            if (dry_run)
+            {
+                forecasted_chaos_brand = static_cast<brand_type>(brand);
+                has_forecasted_chaos_brand = true;
+            }
+        }
+    }
+    else
+        brand = damage_brand;
+
+    if (using_forecast)
+    {
+        special_damage = forecasted_special_damage;
+        special_damage_flavour = forecasted_special_flavour;
+        special_damage_message = forecasted_special_message;
+        obvious_effect = forecasted_obvious_effect;
+
+        special_damage_forecasted = false;
+        forecasted_special_damage = 0;
+        forecasted_special_flavour = BEAM_NONE;
+        forecasted_special_message.clear();
+        forecasted_obvious_effect = false;
+        has_forecasted_chaos_brand = false;
+    }
 
     if (brand != SPWPN_FLAMING && brand != SPWPN_FREEZING
         && brand != SPWPN_ELECTROCUTION && brand != SPWPN_VAMPIRISM
@@ -1122,27 +1161,39 @@ bool attack::apply_damage_brand(const char *what)
     switch (brand)
     {
     case SPWPN_PROTECTION:
-        if (attacker->is_player() && !defender->is_firewood())
+        if (!dry_run && attacker->is_player() && !defender->is_firewood())
             refresh_weapon_protection();
         break;
 
     case SPWPN_FLAMING:
-        calc_elemental_brand_damage(BEAM_FIRE,
-                                    defender->is_icy() ? "melt" : "burn",
-                                    what);
-        special_damage_flavour = BEAM_FIRE;
-        defender->expose_to_element(BEAM_FIRE, 2);
-        if (defender->is_player())
-            maybe_melt_player_enchantments(BEAM_FIRE, special_damage);
+        if (!using_forecast)
+        {
+            calc_elemental_brand_damage(BEAM_FIRE,
+                                        defender->is_icy() ? "melt" : "burn",
+                                        what);
+            special_damage_flavour = BEAM_FIRE;
+        }
+        if (!dry_run)
+        {
+            defender->expose_to_element(BEAM_FIRE, 2);
+            if (defender->is_player())
+                maybe_melt_player_enchantments(BEAM_FIRE, special_damage);
+        }
         break;
 
     case SPWPN_FREEZING:
-        calc_elemental_brand_damage(BEAM_COLD, "freeze", what);
-        special_damage_flavour = BEAM_COLD;
-        defender->expose_to_element(BEAM_COLD, 2, attacker);
+        if (!using_forecast)
+        {
+            calc_elemental_brand_damage(BEAM_COLD, "freeze", what);
+            special_damage_flavour = BEAM_COLD;
+        }
+        if (!dry_run)
+            defender->expose_to_element(BEAM_COLD, 2, attacker);
         break;
 
     case SPWPN_HOLY_WRATH:
+        if (using_forecast)
+            break;
         if (attacker->undead_or_demonic())
             break; // No holy wrath for thee!
 
@@ -1163,6 +1214,8 @@ bool attack::apply_damage_brand(const char *what)
 
     case SPWPN_FOUL_FLAME:
     {
+        if (using_forecast)
+            break;
         if (attacker->is_holy())
             break; // No foul flame for thee!
 
@@ -1186,37 +1239,49 @@ bool attack::apply_damage_brand(const char *what)
     }
 
     case SPWPN_ELECTROCUTION:
-        if (defender->res_elec() > 0)
-            break;
-        else if (one_chance_in(4))
+        if (!using_forecast)
         {
-            special_damage = 8 + random2(13);
-            const string punctuation =
-                    attack_strength_punctuation(special_damage);
-            special_damage_message =
-                defender->is_player()
-                ? make_stringf("You are electrocuted%s", punctuation.c_str())
-                : make_stringf("Lightning courses through %s%s",
-                               defender->name(DESC_THE).c_str(),
-                               punctuation.c_str());
-            special_damage_flavour = BEAM_ELECTRICITY;
-            defender->expose_to_element(BEAM_ELECTRICITY, 2);
+            if (defender->res_elec() > 0)
+                break;
+            else if (one_chance_in(4))
+            {
+                special_damage = 8 + random2(13);
+                const string punctuation =
+                        attack_strength_punctuation(special_damage);
+                special_damage_message =
+                    defender->is_player()
+                    ? make_stringf("You are electrocuted%s", punctuation.c_str())
+                    : make_stringf("Lightning courses through %s%s",
+                                   defender->name(DESC_THE).c_str(),
+                                   punctuation.c_str());
+                special_damage_flavour = BEAM_ELECTRICITY;
+            }
         }
+        if (!dry_run && special_damage > 0)
+            defender->expose_to_element(BEAM_ELECTRICITY, 2);
 
         break;
 
     case SPWPN_VENOM:
-        special_damage_flavour = BEAM_POISON;
-        obvious_effect = apply_poison_damage_brand();
+        if (!dry_run)
+        {
+            special_damage_flavour = BEAM_POISON;
+            obvious_effect = apply_poison_damage_brand();
+        }
         break;
 
     case SPWPN_DRAINING:
-        special_damage_flavour = BEAM_NEG;
-        drain_defender();
+        if (!dry_run)
+        {
+            special_damage_flavour = BEAM_NEG;
+            drain_defender();
+        }
         break;
 
     case SPWPN_VAMPIRISM:
     {
+        if (dry_run)
+            break;
         if (!weapon
             || damage_done < 1
             || !actor_can_drain_life_from(*attacker, *defender)
@@ -1260,6 +1325,8 @@ bool attack::apply_damage_brand(const char *what)
         break;
     }
     case SPWPN_PAIN:
+        if (using_forecast)
+            break;
         if (attacker->is_player() && you_worship(GOD_TROG)
             || !attacker->is_player() && attacker->as_monster()->god == GOD_TROG)
         {
@@ -1271,11 +1338,14 @@ bool attack::apply_damage_brand(const char *what)
         break;
 
     case SPWPN_DISTORTION:
-        ret = distortion_affects_defender();
+        if (!dry_run)
+            ret = distortion_affects_defender();
         break;
 
     case SPWPN_CONFUSE:
     {
+        if (dry_run)
+            break;
         // If a monster with a chaos weapon gets this brand, act like
         // AF_CONFUSE.
         if (attacker->is_monster())
@@ -1335,21 +1405,29 @@ bool attack::apply_damage_brand(const char *what)
     }
 
     case SPWPN_CHAOS:
-        special_damage_flavour = BEAM_CHAOS;
-        obvious_effect = chaos_affects_actor(defender, attacker);
+        if (!dry_run)
+        {
+            special_damage_flavour = BEAM_CHAOS;
+            obvious_effect = chaos_affects_actor(defender, attacker);
+        }
         break;
 
     case SPWPN_ANTIMAGIC:
-        antimagic_affects_defender(damage_done * 8);
+        if (!dry_run)
+            antimagic_affects_defender(damage_done * 8);
         break;
 
     case SPWPN_ACID:
-        special_damage_flavour = BEAM_ACID;
-        defender->splash_with_acid(attacker);
+        if (!dry_run)
+        {
+            special_damage_flavour = BEAM_ACID;
+            defender->splash_with_acid(attacker);
+        }
         break;
 
     case SPWPN_ENTANGLING:
-        if (coinflip() && attacker->can_constrict(*defender, CONSTRICT_ENTANGLE))
+        if (!dry_run && coinflip()
+            && attacker->can_constrict(*defender, CONSTRICT_ENTANGLE))
         {
             if (you.can_see(*defender))
                 mprf("%s becomes entangled by vines.", defender->name(DESC_THE).c_str());
@@ -1363,6 +1441,18 @@ bool attack::apply_damage_brand(const char *what)
 
     if (!obvious_effect)
         obvious_effect = !special_damage_message.empty();
+
+    if (dry_run)
+    {
+        forecasted_special_damage = special_damage;
+        forecasted_special_flavour = special_damage_flavour;
+        forecasted_special_message = special_damage_message;
+        forecasted_obvious_effect = obvious_effect;
+        special_damage_forecasted = true;
+        special_damage = 0;
+        special_damage_message.clear();
+        return ret;
+    }
 
     if (needs_message && !special_damage_message.empty())
     {

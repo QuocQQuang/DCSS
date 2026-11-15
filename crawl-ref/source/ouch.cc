@@ -1579,7 +1579,10 @@ void ouch(int dam, kill_method_type death_type, mid_t source, const char *aux,
                     msg[prefix.length()] = toupper(msg[prefix.length()]); // Capitalize 'Y'
                 if (perc >= 20)
                     msg = uppercase(msg);
-                mprf(channel, "<%s>%s</%s>", color.c_str(), msg.c_str(), color.c_str());
+                if (color.empty())
+                    mprf(channel, "%s", msg.c_str());
+                else
+                    mprf(channel, "<%s>%s</%s>", color.c_str(), msg.c_str(), color.c_str());
                 break;
         }
     }

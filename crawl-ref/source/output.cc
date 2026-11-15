@@ -1510,10 +1510,12 @@ static void _redraw_title()
         formatted_string piety = formatted_string::parse_string(_god_asterisks(true));
         if (you.religion != GOD_NO_GOD)
         {
+            const int used_w = small_layout ? 2
+                                            : (int)(strwidth(species) + strwidth(god));
             string god_stats = make_stringf(" (%d G:%d)", you.piety(), you.gift_timeout);
-            if ((int)(strwidth(species) + strwidth(god) + piety.width() + strwidth(god_stats) + 1) <= (int)WIDTH)
+            if (used_w + piety.width() + (int)strwidth(god_stats) + 1 <= (int)WIDTH)
                 piety += god_stats;
-            else if ((int)(strwidth(species) + strwidth(god) + piety.width() + 6) <= (int)WIDTH) // Try shorter format
+            else if (used_w + piety.width() + 6 <= (int)WIDTH) // Try shorter format
                 piety += make_stringf(" (%d)", you.piety());
         }
         textcolour(_god_status_colour(YELLOW));

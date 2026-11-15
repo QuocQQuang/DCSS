@@ -34,7 +34,12 @@ ranged_attack::ranged_attack(actor *attk, actor *defn,
                              bool tele, actor *blame)
     : ::attack(attk, defn, blame), range_used(0), reflected(false),
         will_mulch(false), pierce(false),
-        teleport(tele), _did_net(false)
+        teleport(tele), _did_net(false),
+        forecasted_missile_damage(0), missile_damage_forecasted(false),
+        forecasted_missile_flavour(BEAM_NONE), forecasted_missile_message(),
+        forecasted_missile_obvious(false),
+        forecasted_chaos_missile_brand(SPMSL_NORMAL),
+        has_forecasted_chaos_missile_brand(false)
 {
     ASSERT(wpn && (wpn->base_type == OBJ_MISSILES || is_range_weapon(*wpn)));
 
@@ -281,6 +286,13 @@ bool ranged_attack::handle_phase_hit()
         damage_done = calc_damage();
         if (damage_done > 0)
         {
+            if (!defender->is_player() || !you.pending_revival)
+            {
+                const string what = make_stringf("the %s", proj_name.c_str());
+                apply_damage_brand(what.c_str(), true);
+                apply_missile_brand(true);
+            }
+
             if (!handle_phase_damaged())
                 return false;
             // Jiyva mutation - piercing projectiles won't keep going if they
@@ -609,35 +621,78 @@ int ranged_attack::dart_duration_roll(special_missile_type type)
     return 5 + random2(base_power);
 }
 
-bool ranged_attack::apply_missile_brand()
+bool ranged_attack::apply_missile_brand(bool dry_run)
 {
     if (weapon->base_type != OBJ_MISSILES)
         return false;
 
+    const bool using_forecast = !dry_run && missile_damage_forecasted;
     special_damage = 0;
+
     special_missile_type brand = get_ammo_brand(*weapon);
     if (brand == SPMSL_CHAOS)
-        brand = random_chaos_missile_brand();
+    {
+        if (using_forecast && has_forecasted_chaos_missile_brand)
+            brand = forecasted_chaos_missile_brand;
+        else
+        {
+            brand = random_chaos_missile_brand();
+            if (dry_run)
+            {
+                forecasted_chaos_missile_brand = brand;
+                has_forecasted_chaos_missile_brand = true;
+            }
+        }
+    }
+
+    if (using_forecast)
+    {
+        special_damage = forecasted_missile_damage;
+        special_damage_flavour = forecasted_missile_flavour;
+        special_damage_message = forecasted_missile_message;
+        obvious_effect = forecasted_missile_obvious;
+
+        missile_damage_forecasted = false;
+        forecasted_missile_damage = 0;
+        forecasted_missile_flavour = BEAM_NONE;
+        forecasted_missile_message.clear();
+        forecasted_missile_obvious = false;
+        has_forecasted_chaos_missile_brand = false;
+    }
 
     switch (brand)
     {
     default:
         break;
     case SPMSL_FLAME:
-        calc_elemental_brand_damage(BEAM_FIRE,
-                                    defender->is_icy() ? "melt" : "burn",
-                                    make_stringf("the %s", proj_name.c_str()).c_str());
+        if (!using_forecast)
+        {
+            calc_elemental_brand_damage(BEAM_FIRE,
+                                        defender->is_icy() ? "melt" : "burn",
+                                        make_stringf("the %s", proj_name.c_str()).c_str());
+            special_damage_flavour = BEAM_FIRE;
+        }
 
-        defender->expose_to_element(BEAM_FIRE, 2);
-        if (defender->is_player())
-            maybe_melt_player_enchantments(BEAM_FIRE, special_damage);
+        if (!dry_run)
+        {
+            defender->expose_to_element(BEAM_FIRE, 2);
+            if (defender->is_player())
+                maybe_melt_player_enchantments(BEAM_FIRE, special_damage);
+        }
         break;
     case SPMSL_FROST:
-        calc_elemental_brand_damage(BEAM_COLD, "freeze",
-                                    make_stringf("the %s", proj_name.c_str()).c_str());
-        defender->expose_to_element(BEAM_COLD, 2, attacker);
+        if (!using_forecast)
+        {
+            calc_elemental_brand_damage(BEAM_COLD, "freeze",
+                                        make_stringf("the %s", proj_name.c_str()).c_str());
+            special_damage_flavour = BEAM_COLD;
+        }
+        if (!dry_run)
+            defender->expose_to_element(BEAM_COLD, 2, attacker);
         break;
     case SPMSL_POISONED:
+        if (dry_run)
+            break;
         if (weapon->is_type(OBJ_MISSILES, MI_DART)
                 && damage_done > 0
             || !one_chance_in(4))
@@ -666,15 +721,19 @@ bool ranged_attack::apply_missile_brand()
         }
         break;
     case SPMSL_CURARE:
-        obvious_effect = curare_actor(attacker, defender,
-                                      proj_name,
-                                      attacker->name(DESC_A));
+        if (!dry_run)
+            obvious_effect = curare_actor(attacker, defender,
+                                          proj_name,
+                                          attacker->name(DESC_A));
         break;
     case SPMSL_CHAOS:
-        obvious_effect = chaos_affects_actor(defender, attacker);
+        if (!dry_run)
+            obvious_effect = chaos_affects_actor(defender, attacker);
         break;
     case SPMSL_DISPERSAL:
     {
+        if (dry_run)
+            break;
         if (defender->no_tele())
         {
             if (defender->is_player())
@@ -696,6 +755,8 @@ bool ranged_attack::apply_missile_brand()
     }
     case SPMSL_DISJUNCTION:
     {
+        if (dry_run)
+            break;
         if (defender->no_tele())
         {
             if (defender->is_player())
@@ -729,11 +790,16 @@ bool ranged_attack::apply_missile_brand()
         break;
     }
     case SPMSL_SILVER:
-        special_damage = max(1 + random2(damage_done) / 3,
-                             silver_damages_victim(defender, damage_done,
-                                                   special_damage_message));
+        if (!using_forecast)
+        {
+            special_damage = max(1 + random2(damage_done) / 3,
+                                 silver_damages_victim(defender, damage_done,
+                                                       special_damage_message));
+        }
         break;
     case SPMSL_BLINDING:
+        if (dry_run)
+            break;
         if (!dart_check(brand))
             break;
         if (!defender->res_blind())
@@ -750,6 +816,8 @@ bool ranged_attack::apply_missile_brand()
         defender->confuse(attacker, damage_done / 3);
         break;
     case SPMSL_FRENZY:
+        if (dry_run)
+            break;
         if (!dart_check(brand))
             break;
         if (defender->is_monster())
@@ -763,6 +831,18 @@ bool ranged_attack::apply_missile_brand()
         else
             defender->go_berserk(false);
         break;
+    }
+
+    if (dry_run)
+    {
+        forecasted_missile_damage = special_damage;
+        forecasted_missile_flavour = special_damage_flavour;
+        forecasted_missile_message = special_damage_message;
+        forecasted_missile_obvious = obvious_effect;
+        missile_damage_forecasted = true;
+        special_damage = 0;
+        special_damage_message.clear();
+        return false;
     }
 
     if (needs_message && !special_damage_message.empty())
@@ -797,6 +877,11 @@ void ranged_attack::player_stab_check()
 bool ranged_attack::player_good_stab()
 {
     return false;
+}
+
+int ranged_attack::forecasted_extra_damage() const
+{
+    return missile_damage_forecasted ? forecasted_missile_damage : 0;
 }
 
 void ranged_attack::set_attack_verb(int/* damage*/)
