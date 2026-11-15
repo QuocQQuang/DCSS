@@ -14,6 +14,7 @@
 #include "monster.h"
 #include "output.h"
 #include "describe.h"
+#include "stringutil.h"
 #include "directn.h"
 #include "tile-inventory-flags.h"
 #include "rltiles/tiledef-dngn.h"
@@ -226,6 +227,8 @@ void MonsterRegion::draw_tag()
         return;
 
     string desc = mon->proper_name(DESC_A);
+    if (mon->max_hp > 0 && mon->current_hp < mon->max_hp)
+        desc += make_stringf(" (%d/%d hp)", mon->current_hp, mon->max_hp);
     draw_desc(desc.c_str());
 }
 

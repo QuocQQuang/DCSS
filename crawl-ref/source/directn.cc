@@ -2772,7 +2772,16 @@ string get_cell_mouseover_tag(const coord_def &gc)
             desc = unseen_desc;
     }
     else if (monster_at(gc) && you.aware_of(*monster_at(gc)))
-        desc = monster_at(gc)->full_name(DESC_PLAIN);
+    {
+        const monster *mon = monster_at(gc);
+        desc = mon->full_name(DESC_PLAIN);
+        // Show HP next to monster name if visible and damaged
+        if (you.can_see(*mon) && mon->max_hit_points > 0
+            && mon->hit_points < mon->max_hit_points)
+        {
+            desc += make_stringf(" (%d/%d hp)", mon->hit_points, mon->max_hit_points);
+        }
+    }
     else if (you.visible_igrd(gc) != NON_ITEM)
     {
         if (env.item[you.visible_igrd(gc)].defined())

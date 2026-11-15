@@ -21,6 +21,7 @@
 #include "output.h"
 #include "player.h"
 #include "state.h"
+#include "stringutil.h"
 #include "rltiles/tiledef-dngn.h"
 #include "rltiles/tiledef-gui.h"
 #include "rltiles/tiledef-main.h"
@@ -1474,14 +1475,17 @@ void TilesFramework::add_text_tag(text_tag_type /*type*/, const monster_info& mo
 
     const coord_def &gc = mon.pos;
 
-    if (mons_is_pghost(mon.type))
-    {
+    string tag_text = mons_is_pghost(mon.type)
         // Beautification hack. "Foo's ghost" is a little bit
         // verbose as a tag. "Foo" on its own should be sufficient.
-        tiles.add_text_tag(TAG_NAMED_MONSTER, mon.mname, gc);
-    }
-    else
-        tiles.add_text_tag(TAG_NAMED_MONSTER, mon.proper_name(DESC_PLAIN), gc);
+        ? mon.mname
+        : mon.proper_name(DESC_PLAIN);
+
+    // Append HP numbers next to the MDAM bar when monster is damaged
+    if (mon.max_hp > 0 && mon.current_hp < mon.max_hp)
+        tag_text += make_stringf(" %d/%d", mon.current_hp, mon.max_hp);
+
+    tiles.add_text_tag(TAG_NAMED_MONSTER, tag_text, gc);
 }
 
 const coord_def &TilesFramework::get_cursor() const

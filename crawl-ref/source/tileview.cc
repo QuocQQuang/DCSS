@@ -24,6 +24,7 @@
 #include "pcg.h"
 #include "player.h"
 #include "state.h"
+#include "stringutil.h"
 #include "tag-version.h"
 #include "terrain.h"
 #include "tile-flags.h"
@@ -1043,35 +1044,40 @@ static void _tile_place_monster(const coord_def &gc, const monster_info& mon)
     if (!status_icons.empty())
         tile_env.icons[gc] = std::move(status_icons);
 
-    // Add name tags.
-    if (!mons_class_gives_xp(mon.type))
-        return;
-
-    const tag_pref pref =
-        Options.tile_tag_pref == TAGPREF_AUTO
-            ? ((crawl_state.game_is_tutorial() || crawl_state.game_is_hints())
-                    ? TAGPREF_TUTORIAL
-                    : crawl_state.game_is_arena()
-                    ? TAGPREF_NAMED
-                    : TAGPREF_ENEMY)
-            : Options.tile_tag_pref;
-    if (pref == TAGPREF_NONE)
-        return;
-    else if (pref == TAGPREF_TUTORIAL)
+    // Add name tags (and damaged HP tag even if name tag is suppressed).
+    bool show_name_tag = mons_class_gives_xp(mon.type);
+    if (show_name_tag)
     {
-        const int kills = you.kills.num_kills(mon);
-        const int limit  = 0;
+        const tag_pref pref =
+            Options.tile_tag_pref == TAGPREF_AUTO
+                ? ((crawl_state.game_is_tutorial() || crawl_state.game_is_hints())
+                        ? TAGPREF_TUTORIAL
+                        : crawl_state.game_is_arena()
+                        ? TAGPREF_NAMED
+                        : TAGPREF_ENEMY)
+                : Options.tile_tag_pref;
 
-        if (!mon.is_named() && kills > limit)
-            return;
+        if (pref == TAGPREF_NONE)
+            show_name_tag = false;
+        else if (pref == TAGPREF_TUTORIAL)
+            show_name_tag = mon.is_named() || you.kills.num_kills(mon) == 0;
+        else if (pref != TAGPREF_ALL && !mon.is_named())
+            show_name_tag = false;
+        else if (pref != TAGPREF_NAMED && pref != TAGPREF_ALL
+                 && mon.attitude == ATT_FRIENDLY)
+        {
+            show_name_tag = false;
+        }
     }
-    else if (pref != TAGPREF_ALL && !mon.is_named())
-        return;
 
-    if (pref != TAGPREF_NAMED && pref != TAGPREF_ALL && mon.attitude == ATT_FRIENDLY)
-        return;
-
-    tiles.add_text_tag(TAG_NAMED_MONSTER, mon);
+    if (show_name_tag)
+        tiles.add_text_tag(TAG_NAMED_MONSTER, mon);
+    else if (mon.max_hp > 0 && mon.current_hp < mon.max_hp)
+    {
+        tiles.add_text_tag(TAG_NAMED_MONSTER,
+                           make_stringf("%d/%d", mon.current_hp, mon.max_hp),
+                           mon.pos);
+    }
 }
 
 void tile_reset_fg(const coord_def &gc)

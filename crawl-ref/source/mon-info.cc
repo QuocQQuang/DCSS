@@ -430,6 +430,7 @@ void monster_info::_populate_as_generic()
     client_id = MID_NOBODY;
     summoner_id = MID_NOBODY;
     last_seen_at_turn = -1;
+    current_hp = max_hp = mons_avg_hp(type);
 }
 
 static description_level_type _article_for(const actor* a)
@@ -528,6 +529,8 @@ monster_info::monster_info(const monster* m, int milev)
     attitude = ATT_HOSTILE;
     pos = m->pos();
     mid = m->mid;
+    current_hp = 0;
+    max_hp = 0;
 
     attitude = m->attitude();
 
@@ -729,7 +732,11 @@ monster_info::monster_info(const monster* m, int milev)
     }
 
     if (!is(MB_PHASE_SHIFT) || you.can_see_invisible())
+    {
         dam = mons_get_damage_level(*m);
+        current_hp = m->hit_points;
+        max_hp = m->max_hit_points;
+    }
     else
         dam = MDAM_OKAY;
 

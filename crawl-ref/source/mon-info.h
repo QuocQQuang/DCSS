@@ -333,6 +333,8 @@ struct monster_info_base
     bool umbraed;
     int last_seen_at_turn;
     int threat_range;
+    int current_hp;
+    int max_hp;
 
     mid_t mid;
     mid_t client_id;
@@ -353,7 +355,13 @@ struct monster_info : public monster_info_base
 #define MILEV_ALL 0
 #define MILEV_SKIP_SAFE -1
 #define MILEV_NAME -2
-    monster_info() { mid = MID_NOBODY; client_id = 0; }
+    monster_info()
+    {
+        mid = MID_NOBODY;
+        client_id = 0;
+        current_hp = 0;
+        max_hp = 0;
+    }
     explicit monster_info(const monster* m, int level = MILEV_ALL);
     explicit monster_info(monster_type p_type,
                           monster_type p_base_type = MONS_NO_MONSTER);
